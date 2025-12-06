@@ -1,0 +1,64 @@
+name: Builder
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build add-on
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed_files
+        uses: jitterbit/get-changed-files@v1
+        if: github.event_name != 'workflow_dispatch'
+
+      - name: Find add-on directories with changes
+        id: addons
+        run: |
+          declare -a addons
+          for file in ${{ steps.changed_files.outputs.all }}; do
+            if [[ "$file" =~ ^([^/]+)/(config.json|config.yaml|Dockerfile|build.json|build.yaml) ]]; then
+              addon="${BASH_REMATCH[1]}"
+              if [[ ! " ${addons[@]} " =~ " ${addon} " ]]; then
+                addons+=("$addon")
+              fi
+            fi
+          done
+
+          if [ ${#addons[@]} -eq 0 ]; then
+            echo "No add-on changes detected"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changed add-ons: ${addons[*]}"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "addons=[\"$(IFS='","'; echo "${addons[*]}")\"]" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Login to GitHub Container Registry
+        if: steps.addons.outputs.changed == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build add-ons
+        if: steps.addons.outputs.changed == 'true'
+        uses: home-assistant/builder@master
+        with:
+          args: |
+            --all \
+            --target ${{ matrix.addon }} \
+            --docker-hub ghcr.io/${{ github.repository_owner }}
+        strategy:
+          matrix:
+            addon: ${{ fromJson(steps.addons.outputs.addons) }}

@@ -1,0 +1,20 @@
+{
+  "name": "AirConnect",
+  "version": "1.0.0",
+  "slug": "airconnect",
+  "description": "AirPlay to Chromecast/UPNP bridge - stream audio from Apple devices to Chromecast and UPnP/Sonos players",
+  "arch": ["aarch64", "amd64", "armv7"],
+  "url": "https://github.com/1activegeek/docker-airconnect",
+  "startup": "services",
+  "boot": "auto",
+  "host_network": true,
+  "options": {
+    "aircast_var": "",
+    "airupnp_var": ""
+  },
+  "schema": {
+    "aircast_var": "str?",
+    "airupnp_var": "str?"
+  },
+  "image": "1activegeek/airconnect"
+}

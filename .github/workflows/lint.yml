@@ -1,0 +1,48 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  hadolint:
+    name: Hadolint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: "*/Dockerfile"
+          recursive: true
+
+  validate-json:
+    name: Validate JSON files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate config.json files
+        run: |
+          for config in */config.json; do
+            echo "Validating $config"
+            if ! jq empty "$config"; then
+              echo "Invalid JSON in $config"
+              exit 1
+            fi
+          done
+
+      - name: Validate repository.json
+        run: |
+          echo "Validating repository.json"
+          if ! jq empty repository.json; then
+            echo "Invalid JSON in repository.json"
+            exit 1
+          fi
