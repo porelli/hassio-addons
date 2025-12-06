@@ -9,9 +9,12 @@ on:
       - main
 
 jobs:
-  build:
+  init:
     runs-on: ubuntu-latest
-    name: Build add-on
+    name: Initialize build
+    outputs:
+      addons: ${{ steps.addons.outputs.addons_list }}
+      changed: ${{ steps.addons.outputs.changed }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,46 +22,72 @@ jobs:
       - name: Get changed files
         id: changed_files
         uses: jitterbit/get-changed-files@v1
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name == 'push'
+        continue-on-error: true
 
-      - name: Find add-on directories with changes
+      - name: Find add-on directories
         id: addons
         run: |
           declare -a addons
-          for file in ${{ steps.changed_files.outputs.all }}; do
-            if [[ "$file" =~ ^([^/]+)/(config.json|config.yaml|Dockerfile|build.json|build.yaml) ]]; then
-              addon="${BASH_REMATCH[1]}"
-              if [[ ! " ${addons[@]} " =~ " ${addon} " ]]; then
-                addons+=("$addon")
-              fi
-            fi
-          done
 
-          if [ ${#addons[@]} -eq 0 ]; then
-            echo "No add-on changes detected"
-            echo "changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "Changed add-ons: ${addons[*]}"
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "addons=[\"$(IFS='","'; echo "${addons[*]}")\"]" >> $GITHUB_OUTPUT
+          # If this is a PR or we have changed files, detect changes
+          if [[ "${{ steps.changed_files.outcome }}" == "success" && -n "${{ steps.changed_files.outputs.all }}" ]]; then
+            for file in ${{ steps.changed_files.outputs.all }}; do
+              if [[ "$file" =~ ^([^/]+)/(config.json|config.yaml|Dockerfile|build.json|build.yaml|build.sh|run.sh) ]]; then
+                addon="${BASH_REMATCH[1]}"
+                if [[ -d "$addon" && ! " ${addons[@]} " =~ " ${addon} " ]]; then
+                  addons+=("$addon")
+                fi
+              fi
+            done
           fi
 
+          # If no changes detected or this is initial commit, build all add-ons
+          if [ ${#addons[@]} -eq 0 ]; then
+            echo "No specific changes detected, finding all add-ons..."
+            for dir in */; do
+              dir=${dir%/}
+              if [ -f "$dir/config.json" ]; then
+                addons+=("$dir")
+              fi
+            done
+          fi
+
+          if [ ${#addons[@]} -eq 0 ]; then
+            echo "No add-ons found"
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "addons_list=[]" >> $GITHUB_OUTPUT
+          else
+            echo "Add-ons to build: ${addons[*]}"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            # Format as JSON array
+            printf -v addons_json '%s\n' "${addons[@]}" | jq -R . | jq -sc .
+            echo "addons_list=$addons_json" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: init
+    if: needs.init.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    name: Build ${{ matrix.addon }}
+    strategy:
+      fail-fast: false
+      matrix:
+        addon: ${{ fromJson(needs.init.outputs.addons) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Login to GitHub Container Registry
-        if: steps.addons.outputs.changed == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build add-ons
-        if: steps.addons.outputs.changed == 'true'
+      - name: Build ${{ matrix.addon }} add-on
         uses: home-assistant/builder@master
         with:
           args: |
-            --all \
             --target ${{ matrix.addon }} \
             --docker-hub ghcr.io/${{ github.repository_owner }}
-        strategy:
-          matrix:
-            addon: ${{ fromJson(steps.addons.outputs.addons) }}
