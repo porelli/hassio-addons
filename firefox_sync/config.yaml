@@ -1,0 +1,51 @@
+# https://developers.home-assistant.io/docs/apps/configuration
+name: Firefox Sync
+version: "0.1.0"
+slug: firefox_sync
+description: >-
+  Your own Firefox Sync server (syncstorage-rs with its tokenserver) and the
+  firefox-sync admin UI, with Mozilla's accounts or the self-hosted ones
+url: https://github.com/porelli/hassio-addons/tree/main/firefox_sync
+arch:
+  - aarch64
+  - amd64
+# the multi-arch image the builder workflow publishes (comment it out to have the
+# Supervisor build the add-on locally from the Dockerfile)
+image: ghcr.io/porelli/hassio-addon-firefox-sync
+init: false
+# s6 stops the Sync server, the admin UI and the bundled MariaDB in order
+timeout: 120
+ports:
+  8000/tcp: 5000
+  8080/tcp: null
+  8081/tcp: null
+ingress: true
+panel_icon: mdi:sync
+panel_title: Firefox Sync
+# the Supervisor's discovery for the firefox_sync integration
+discovery:
+  - firefox_sync
+# the MariaDB add-on instead of the bundled MariaDB (sync_db_containers: false)
+services:
+  - mysql:want
+# a consistent dump of the databases before every backup; the raw MariaDB files are
+# then left out (DOCS.md, "Backups")
+backup_pre: /usr/bin/ffs-backup-pre
+backup_exclude:
+  - "*/mariadb/*"
+options:
+  sync_public_url: null
+  sync_max_users: "initial:5"
+  admin: true
+  sync_db_containers: true
+  accounts: mozilla
+schema:
+  sync_public_url: url
+  sync_max_users: "match(^(fixed:|initial:)?([0-9]+|unlimited)$)"
+  admin: bool
+  sync_db_containers: bool
+  accounts: list(mozilla|self_hosted)
+  # accounts: self_hosted: the link code the accounts add-on prints in its log
+  fxa_link_code: password?
+  # off by default: MariaDB data of another major than the image's is refused
+  sync_mariadb_upgrade: bool?

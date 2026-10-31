@@ -1,0 +1,14 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+# The bundled MariaDB (sync_db_containers on), on 127.0.0.1 only; ready (fd 3) when it answers.
+# With the MariaDB add-on: nothing runs here, ready at once.
+. /usr/lib/firefox-sync/common.sh
+ffs_load
+if [ "${SYNC_DB_CONTAINERS}" != 1 ]; then
+  echo >&3
+  exec sleep infinity
+fi
+exec s6-notifyoncheck -d -n 0 -s 1000 -w 1000 -c "mariadb-admin --protocol=socket -S ${FFS_SOCKET} ping" \
+  mariadbd --user=mysql --datadir="${FFS_DATADIR}" --socket="${FFS_SOCKET}" --bind-address=127.0.0.1 --port=3306 \
+  --skip-name-resolve --explicit_defaults_for_timestamp --skip-log-bin --log-error= \
+  --innodb-buffer-pool-size=128M --max-connections=64

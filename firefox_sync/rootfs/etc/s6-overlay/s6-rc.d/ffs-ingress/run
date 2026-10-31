@@ -1,0 +1,9 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+# Home Assistant's ingress (port 8099): nginx in front of the admin UI, for the Supervisor only
+. /usr/lib/firefox-sync/common.sh
+ffs_load
+if [ "${FFS_ADMIN}" != true ]; then
+  exec sleep infinity
+fi
+exec nginx -c /etc/nginx/ffs-ingress.conf -g 'daemon off;'

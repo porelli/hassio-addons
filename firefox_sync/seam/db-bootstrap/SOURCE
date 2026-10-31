@@ -1,0 +1,13 @@
+SEAM (db-bootstrap): these files are copies, not this add-on's own code.
+
+  db-setup.sh    firefox-sync db/db-setup.sh       branch db-bootstrap, commit 6cb73f2
+  sync.sql       firefox-sync db/mysql/sync.sql    (the same on main)
+  bootstrap.sql  firefox-sync db/mysql/bootstrap.sql  branch db-bootstrap, commit 6cb73f2
+
+sha256 of the copies (2026-10-31):
+  772307acb9e19fa150cf53bb300cb04bdcd78b772afc01cc671d6501d0a35cfe  db-setup.sh (6cb73f2)
+  fb5f251d4c04b7db2a40aa38086556dcf6786098160b2b8414ce77b57377f9c1  sync.sql
+  5b0d5be599c86c4fc524347f05bf1a1b3bd22f84026c04041dd5aa4c83b58e88  bootstrap.sql
+
+When db-bootstrap is merged and an image ships these files, change the db-bootstrap stage of
+the Dockerfile to that image and delete this folder: nothing else refers to it.

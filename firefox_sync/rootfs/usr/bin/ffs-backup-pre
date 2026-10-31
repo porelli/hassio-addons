@@ -1,0 +1,50 @@
+#!/bin/bash
+# shellcheck shell=bash
+# backup_pre of the add-on: the Supervisor runs it in the container before a Home Assistant
+# backup. A consistent dump of the Sync databases and the admin UI's (--single-transaction, as
+# their own users: what compose's backup service dumps), kept in /data/backup (only the
+# newest), and the run recorded in the admin UI's ffs_backups (its backup age and status).
+# The raw files of the bundled MariaDB are left out of the backup (backup_exclude): a restore
+# loads this dump into a new data directory (ffs-db-prepare, ffs-db-bootstrap). A failure
+# fails the backup of the add-on.
+set -o pipefail
+# shellcheck source=../lib/firefox-sync/common.sh
+. /usr/lib/firefox-sync/common.sh
+ffs_load
+
+umask 077
+mkdir -p "${FFS_DUMP_DIR}"
+started=$(date +%s%3N)
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+out=${FFS_DUMP_DIR}/firefox-sync-${stamp}.sql.gz
+partial=${out}.partial
+error=
+dump() { # user password databases...
+  local user=$1 password=$2
+  shift 2
+  ffs_sync_client mariadb-dump "${user}" "${password}" --single-transaction --routines --triggers --no-tablespaces --databases "$@"
+}
+{
+  dump "${SYNC_TOKENSERVER_DB_USER}" "${SYNC_TOKENSERVER_DB_PASSWORD}" "${SYNC_TOKENSERVER_DB_NAME}" &&
+  dump "${SYNC_STORAGE_DB_USER}" "${SYNC_STORAGE_DB_PASSWORD}" "${SYNC_STORAGE_DB_NAME}" &&
+  dump "${ADMIN_DB_USER}" "${ADMIN_DB_PASSWORD}" "${ADMIN_DB_NAME}"
+} 2> /tmp/ffs-backup.err | gzip -6 > "${partial}" || error=$(grep -v '^Warning' /tmp/ffs-backup.err | head -n 3 | tr '\n' ' ')
+finished=$(date +%s%3N)
+ok=1 bytes=0
+if [ -n "${error}" ]; then
+  ok=0
+  rm -f "${partial}"
+  echo "ffs-backup-pre: the dump failed: ${error}" >&2
+else
+  mv -f "${partial}" "${out}"
+  bytes=$(stat -c %s "${out}")
+  # only the newest: the Home Assistant backups keep the older ones
+  find "${FFS_DUMP_DIR}" -name 'firefox-sync-*.sql.gz' ! -name "$(basename "${out}")" -delete
+  echo "ffs-backup-pre: ${out} (${bytes} bytes)"
+fi
+# the run, for the admin UI (docs/backups.md#your-own-database-server); the table is its own
+clean=$(printf '%s' "${error}" | tr -d "'\\\\" | cut -c1-500)
+ffs_sync_client mariadb "${ADMIN_DB_USER}" "${ADMIN_DB_PASSWORD}" "${ADMIN_DB_NAME}" -e \
+  "INSERT INTO ffs_backups (scope, started, finished, ok, bytes, location, error) VALUES ('sync', ${started}, ${finished}, ${ok}, ${bytes}, 'Home Assistant backup', '${clean}')" \
+  2> /dev/null || echo "ffs-backup-pre: the run could not be recorded for the admin UI (is it on?)" >&2
+[ "${ok}" = 1 ]

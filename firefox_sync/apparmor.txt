@@ -1,0 +1,44 @@
+#include <tunables/global>
+
+# The AppArmor profile of the add-on (developers.home-assistant.io/docs/apps/presentation#apparmor):
+# Docker's default profile (no mount, no ptrace of other profiles, no writes to /proc and
+# /sys), with the capabilities the s6 services need: the bundled MariaDB, Redis and nginx
+# start as root and drop to their users (setuid, setgid, chown), the add-on writes its /data.
+profile firefox_sync flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  file,
+  network,
+  unix,
+  signal (send, receive),
+
+  capability chown,
+  capability dac_override,
+  capability dac_read_search,
+  capability fowner,
+  capability fsetid,
+  capability kill,
+  capability setgid,
+  capability setuid,
+  capability setpcap,
+  capability net_bind_service,
+  capability sys_resource,
+
+  deny mount,
+  deny umount,
+  deny pivot_root,
+  deny ptrace (trace) peer=unconfined,
+  deny @{PROC}/sys/kernel/** w,
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/kcore rwklx,
+  deny /sys/[^f]*/** wklx,
+  deny /sys/f[^s]*/** wklx,
+  deny /sys/fs/[^c]*/** wklx,
+  deny /sys/fs/c[^g]*/** wklx,
+  deny /sys/fs/cg[^r]*/** wklx,
+  deny /sys/firmware/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+
+  # (the Supervisor names the profile after the full slug, <repository>_firefox_sync)
+  ptrace (read, readby) peer=*firefox_sync,
+}

@@ -1,0 +1,38 @@
+configuration:
+  sync_public_url:
+    name: Public Sync URL
+    description: >-
+      The public HTTPS URL of the Sync server, through your reverse proxy, for example
+      https://sync.example.com (SYNC_PUBLIC_URL).
+  sync_max_users:
+    name: Max users
+    description: >-
+      A number (applied at every start), initial:N (applied once, then managed in the admin
+      UI), or unlimited. 0: nobody new (SYNC_MAX_USERS).
+  admin:
+    name: Admin UI
+    description: The firefox-sync admin UI, in the sidebar through Home Assistant's ingress.
+  sync_db_containers:
+    name: Bundled MariaDB
+    description: >-
+      On: the databases in a MariaDB inside this add-on. Off: in the MariaDB add-on, which must
+      be installed and running (SYNC_DB_CONTAINERS).
+  accounts:
+    name: Mozilla accounts
+    description: >-
+      mozilla: Mozilla's accounts. self_hosted: the "Mozilla accounts (self-hosted)" add-on of
+      this repository, started first.
+  fxa_link_code:
+    name: Link code of the accounts
+    description: >-
+      With accounts self_hosted: the link code the "Mozilla accounts (self-hosted)" add-on
+      prints in its log at every start.
+  sync_mariadb_upgrade:
+    name: Allow a new MariaDB major
+    description: >-
+      Off: data of another MariaDB major than this version's is refused at the start. On: the
+      data is upgraded, with no way back but a backup. Take a backup first.
+network:
+  8000/tcp: The Sync server (for your reverse proxy)
+  8080/tcp: The admin UI (the ingress and the integration use the add-on network)
+  8081/tcp: The sign-up gate of the self-hosted accounts (for your reverse proxy)
