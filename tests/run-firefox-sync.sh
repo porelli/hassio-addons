@@ -8,7 +8,8 @@
 # it checks: the start (the one-shots, fail closed), firefox-sync's tests/test_client_flow.py
 # against the add-on's Sync server (upstream's mock FxA for the sign-ins), the admin UI through a
 # simulated ingress (allowed only from 172.30.32.2, the user from the Supervisor's headers, the
-# links rewritten), /metrics with the token, the discovery sent, the backup_pre dump; and in the
+# links rewritten), /metrics with the token, the discovery sent, the backup_pre dump, the
+# privilege separation (each service its own user, tests/privsep.sh); and in the
 # bundled mode: a restore from that dump (the raw files left out of the backup), and the
 # keep-major guard.
 #
@@ -21,6 +22,8 @@ FFS=${2:?the firefox-sync checkout (its tests/)}
 MODES=${3:-all}
 ADDON_DB_IMAGE=${4:-mariadb:11.4}
 HERE=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=privsep.sh
+. "${HERE}/privsep.sh"
 NET=ffs-hat
 SUBNET=172.30.32.0/23
 TOKEN=test-supervisor-token
@@ -185,6 +188,20 @@ PY
   check "$?" 0 "the admin UI sees the backup (ffs_backup_last_ok{scope=\"sync\"} 1)"
   printf '%s\n' "${out}" > "${WORK}/metrics-$3-after-backup.txt"
   cp "${WORK}/metrics-$3-after-backup.txt" "/tmp/ffs-hat-metrics-$3.txt"
+
+  say "privilege separation: each service its own user, none reads another's secrets"
+  privsep_runs_as ffs-hat-addon app /app/bin/syncserver
+  privsep_runs_as ffs-hat-addon ffs-admin "ffs-admin serve"
+  privsep_runs_as ffs-hat-addon www-data "nginx: worker"
+  [ "$3" != bundled ] || privsep_runs_as ffs-hat-addon mysql "mariadbd --user"
+  local files expected=5
+  [ "$3" = bundled ] && expected=6 # (the pin of the bundled MariaDB)
+  read -r -a files <<< "$(privsep_files ffs-hat-addon /run/ffs/sync.env /data/secrets.env /data/options.json \
+    /data/firefox-sync.env '/data/backup/firefox-sync-*.sql.gz' /run/s6/container_environment/SUPERVISOR_TOKEN)"
+  check "${#files[@]}" "${expected}" "privilege separation: the ${expected} secret files exist (${files[*]##*/})"
+  for user in app ffs-admin www-data; do
+    privsep_denied ffs-hat-addon "${user}" "" "${files[@]}" dir:/app/bin dir:/usr/local/bin dir:/data dir:/data/backup dir:/run/ffs
+  done
 }
 
 run_bundled() {

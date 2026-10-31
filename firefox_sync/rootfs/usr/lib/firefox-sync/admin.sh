@@ -1,7 +1,8 @@
 #!/bin/bash
 # shellcheck shell=bash
 # The admin UI with compose's environment of ffs-admin (compose/sync.yml, sync-mariadb.yml and,
-# with the self-hosted accounts, fxa.yml), and nothing else: not the Sync server's secrets.
+# with the self-hosted accounts, fxa.yml), and nothing else: not the Sync server's secrets. As
+# its own user (ffs-admin): its sign-up gate (8081) faces the internet, the Sync server (app) too
 set -eo pipefail
 # shellcheck source=common.sh
 . /usr/lib/firefox-sync/common.sh
@@ -55,4 +56,4 @@ if [ "${FFS_ACCOUNTS:-}" = self_hosted ]; then
   )
 fi
 cd /tmp
-exec env -i "${vars[@]}" /command/s6-setuidgid nobody /usr/local/bin/ffs-admin serve
+exec env -i "${vars[@]}" /command/s6-setuidgid ffs-admin /usr/local/bin/ffs-admin serve

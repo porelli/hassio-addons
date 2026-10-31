@@ -57,6 +57,10 @@ COPY --from=admin /ffs-admin /usr/local/bin/ffs-admin
 # db_init.sh reads its SQL from /scripts
 COPY --from=init /scripts /scripts
 
+# the admin UI's own system user (no login, no home): not the Sync server's (app, the image's),
+# not nobody; both face the internet (the Sync API, the sign-up gate)
+RUN useradd --system --user-group --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin ffs-admin
+
 COPY rootfs /
 COPY --from=db-bootstrap / /usr/share/firefox-sync/db/
 RUN chmod 0755 /usr/bin/ffs-* /usr/lib/firefox-sync/*.sh /usr/share/firefox-sync/db/db-setup.sh \

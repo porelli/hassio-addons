@@ -98,7 +98,9 @@ Paste it into the Firefox Sync add-on's `fxa_link_code` option (with `accounts: 
 The code is this add-on's host name on the add-on network and a random token, generated once.
 At its start the Firefox Sync add-on fetches what it needs with it, from this add-on's port 8101
 (on the add-on network only): the addresses of the accounts' servers, and the passwords of the
-admin UI's database user and of Redis. Without the token the port answers nothing. Nothing is
+admin UI's database user and of Redis. Without the token the port answers nothing. Inside the
+container every server runs as its own user, and only the link's (`fxa-link`) can read those
+details: the servers that face the internet, the pairing server first, cannot. Nothing is
 written to `/share`, which every add-on that maps it could read. Start this add-on first (it
 starts before the application add-ons at boot); start the Firefox Sync add-on again after
 changing this one's options. The token is in `/data/secrets.env` (`FXA_LINK_TOKEN`); to change

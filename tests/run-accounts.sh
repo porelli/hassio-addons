@@ -8,7 +8,9 @@
 # route and /img/ as DOCS.md says) and a mail catcher (mailpit) for the codes. It runs
 # firefox-sync's tests/test_fxa_flow.py (sign-up, email codes, keys, OAuth, tokenserver and sync,
 # through the public URLs) and tests/test_fxa_pairing.py, checks the admin UI's view of the
-# accounts, the accounts' backup_pre dump, and a restart (the keys kept).
+# accounts, the accounts' backup_pre dump, the privilege separation of both add-ons (each
+# service its own user: tests/privsep.sh), an avatar written and served, and a restart (the
+# keys kept).
 #
 #   tests/run-accounts.sh <sync image> <accounts image> <firefox-sync checkout> [bundled|addon]
 #
@@ -20,6 +22,8 @@ FFS=${3:?the firefox-sync checkout (its tests/)}
 MODE=${4:-bundled}
 ADDON_DB_IMAGE=${ADDON_DB_IMAGE:-mariadb:11.4}
 HERE=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=privsep.sh
+. "${HERE}/privsep.sh"
 NET=ffs-hat
 TOKEN=test-supervisor-token
 WORK=$(mktemp -d /tmp/ffs-hat-fxa.XXXXXX)
@@ -232,6 +236,61 @@ docker exec ffs-hat-accounts /usr/bin/fxa-backup-pre
 check "$?" 0 "fxa-backup-pre"
 sudo sh -c "zcat ${WORK}/accounts-data/backup/firefox-accounts-*.sql.gz" | grep -c 'CREATE DATABASE' | grep -q '^5$'
 check "$?" 0 "the dump holds the five databases"
+
+say "privilege separation in the accounts add-on: each service its own user"
+A=ffs-hat-accounts
+privsep_runs_as "${A}" fxa-pairing bin/channelserver
+privsep_runs_as "${A}" fxa-link link-server.js
+privsep_runs_as "${A}" fxa-content fxa-content-server.js
+privsep_runs_as "${A}" fxa-profile bin/server.js bin/worker.js bin/_static.js
+privsep_runs_as "${A}" fxa-imgproxy img-proxy.js
+privsep_runs_as "${A}" app bin/key_server.js
+privsep_runs_as "${A}" redis redis-server
+[ "${MODE}" != bundled ] || privsep_runs_as "${A}" mysql "mariadbd --user"
+check "$(docker exec "${A}" stat -c '%U %a' /run/fxa-link /run/fxa-link/link.env | tr '\n' ' ')" "fxa-link 700 fxa-link 600 " "/run/fxa-link and link.env: fxa-link's, 0700 and 0600"
+# the secret files of the add-on (the dump in /data/backup, the Supervisor's token of s6)
+secrets="/run/fxa-link/link.env /run/fxa/fxa.env /data/secrets.env /data/options.json /data/firefox-accounts.env
+  /data/fxa-keys/secret-key.json /data/fxa-keys/openid-key.json /data/fxa-keys/vapid-keys.json
+  /run/fxa-content/content-server.json /data/backup/firefox-accounts-*.sql.gz /run/s6/container_environment/SUPERVISOR_TOKEN"
+# shellcheck disable=SC2086
+read -r -a files <<< "$(privsep_files "${A}" ${secrets})"
+expected=11
+[ "${MODE}" = bundled ] || expected=10 # (no pin of the bundled MariaDB)
+check "${#files[@]}" "${expected}" "privilege separation: the ${expected} secret files exist (${files[*]##*/})"
+dirs="dir:/fxa/packages/fxa-auth-server dir:/fxa/packages/fxa-auth-server/dist/packages/fxa-auth-server
+  dir:/fxa/packages/fxa-content-server/server dir:/usr/local/bin dir:/data dir:/data/fxa-keys dir:/run/fxa-link
+  dir:/run/fxa-content dir:/data/fxa-profile-images"
+keys="/data/fxa-keys/secret-key.json /data/fxa-keys/openid-key.json /data/fxa-keys/vapid-keys.json dir:/data/fxa-keys
+  dir:/fxa/packages/fxa-auth-server dir:/fxa/packages/fxa-auth-server/dist/packages/fxa-auth-server dir:/fxa/packages/fxa-content-server/server"
+# shellcheck disable=SC2086
+{
+  privsep_denied "${A}" fxa-pairing "" "${files[@]}" ${dirs}
+  privsep_denied "${A}" fxa-imgproxy "" "${files[@]}" ${dirs}
+  privsep_denied "${A}" fxa-content "/run/fxa-content/content-server.json dir:/run/fxa-content" "${files[@]}" ${dirs}
+  privsep_denied "${A}" fxa-profile "dir:/data/fxa-profile-images" "${files[@]}" ${dirs}
+  privsep_denied "${A}" fxa-link "/run/fxa-link/link.env dir:/run/fxa-link" "${files[@]}" ${dirs}
+  privsep_denied "${A}" fxa-policy "" "${files[@]}" ${dirs}
+  privsep_denied "${A}" app "$(echo ${keys})" "${files[@]}" ${dirs}
+}
+
+say "privilege separation in the Sync add-on (accounts: self_hosted, the link code in its options)"
+privsep_runs_as ffs-hat-sync app /app/bin/syncserver
+privsep_runs_as ffs-hat-sync ffs-admin "ffs-admin serve"
+privsep_runs_as ffs-hat-sync www-data "nginx: worker"
+# shellcheck disable=SC2086
+read -r -a sfiles <<< "$(privsep_files ffs-hat-sync /run/ffs/sync.env /data/secrets.env /data/options.json /run/s6/container_environment/SUPERVISOR_TOKEN)"
+check "${#sfiles[@]}" 4 "privilege separation: the Sync add-on's 4 secret files exist"
+for user in app ffs-admin www-data; do
+  privsep_denied ffs-hat-sync "${user}" "" "${sfiles[@]}" dir:/app/bin dir:/usr/local/bin dir:/data dir:/run/ffs
+done
+
+say "the avatars: written by the profile worker as fxa-profile, served through img-proxy"
+avatar=$(openssl rand -hex 16)
+docker exec "${A}" curl -sf -o /dev/null -X POST -H 'Content-Type: image/png' \
+  --data-binary @/fxa/packages/fxa-profile-server/lib/assets/default-profile.png "http://127.0.0.1:1113/a/${avatar}"
+check "$?" 0 "the profile worker stores an avatar"
+check "$(docker exec "${A}" stat -c %U "/data/fxa-profile-images/${avatar}" 2>&1)" fxa-profile "the avatar's file is fxa-profile's"
+check "$(docker exec "${A}" curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:1114/img/a/${avatar}")" 200 "img-proxy serves it"
 start_supervisor "${WORK}/accounts-data/options.json" "${MOCK_MYSQL}"
 docker restart -t 60 ffs-hat-accounts > /dev/null
 ready=1

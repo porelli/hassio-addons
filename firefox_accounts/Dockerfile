@@ -56,6 +56,21 @@ COPY --from=pairing /app/bin/channelserver /opt/channelserver/bin/channelserver
 COPY --from=pairing /app/mmdb /opt/channelserver/mmdb
 COPY --from=pairing /app/version.json /opt/channelserver/version.json
 
+# one system user per service that has no reason to share one (no login, no home): the
+# servers that face the internet (pages, profile, avatars, pairing) cannot read the others'
+# secrets, their environment (/proc/<pid>/environ) or the signing keys, nor write the code of
+# /fxa (the image's user app owns it: the auth server and the migrations keep it).
+#   fxa-content     the accounts' pages          fxa-pairing   the pairing server
+#   fxa-profile     profile, its worker, static  fxa-link      the link for the Sync add-on
+#   fxa-imgproxy    the avatars' /img/ proxy     fxa-policy    the sign-up policy (oneshot)
+# The content server rewrites the CDN's address in its pages at every start: those files are
+# its user's (only those, not the whole tree)
+RUN for user in fxa-content fxa-profile fxa-imgproxy fxa-pairing fxa-link fxa-policy; do \
+        useradd --system --user-group --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin "${user}"; \
+    done \
+    && grep -rlZ https://cdn.accounts.firefox.com /fxa/packages/fxa-content-server/dist/settings/prod \
+        | xargs -0 -r chown fxa-content:fxa-content
+
 # the avatars live in /data: the image's directory (the default avatar) seeds it at the start
 RUN mv /fxa/packages/fxa-profile-server/var/public /fxa/packages/fxa-profile-server/var/public.dist \
     && ln -s /data/fxa-profile-images /fxa/packages/fxa-profile-server/var/public

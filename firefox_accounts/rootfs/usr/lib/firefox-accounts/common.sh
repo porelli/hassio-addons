@@ -66,7 +66,7 @@ fxa_client() {
   MYSQL_PWD="${FXA_MYSQL_PASSWORD}" "${program}" --protocol=tcp -h "${FXA_MYSQL_HOST}" -P "${FXA_MYSQL_PORT}" -u "${FXA_MYSQL_USER}" "$@"
 }
 
-# the env of a Node.js service of the accounts, as the image's user: PATH and HOME, the
+# the env of a Node.js service of the accounts, before its own user: PATH and HOME, the
 # test CA when there is one (NODE_EXTRA_CA_CERTS, tests only), then the given NAME=value
 fxa_node_env() {
   vars=(PATH=/usr/local/bin:/usr/bin:/bin HOME=/home/app)

@@ -12,6 +12,11 @@ trap 'bashio::log.error "ffs-init: failed at line ${LINENO}: ${BASH_COMMAND}"' E
 umask 077
 mkdir -p /run/ffs /data
 chmod 700 /run/ffs
+# the options hold the link code (the accounts' passwords), s6's copy of the container's
+# environment the Supervisor's token: root's only (bashio and with-contenv read them as root,
+# before a service drops to its user)
+[ ! -f /data/options.json ] || chmod 600 /data/options.json
+chmod 700 /run/s6/container_environment
 
 # ---- the secrets: generated once, 0600, never replaced (a new SYNC_MASTER_SECRET would sign
 # every client out; new database passwords would not match the databases)

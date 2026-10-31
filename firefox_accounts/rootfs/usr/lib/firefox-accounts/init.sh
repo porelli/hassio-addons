@@ -11,6 +11,10 @@ trap 'bashio::log.error "fxa-init: failed at line ${LINENO}: ${BASH_COMMAND}"' E
 umask 077
 mkdir -p /run/fxa /data
 chmod 700 /run/fxa
+# the options hold the SMTP password, s6's copy of the container's environment the Supervisor's
+# token: root's only (bashio and with-contenv read them as root, before a service drops to its user)
+[ ! -f /data/options.json ] || chmod 600 /data/options.json
+chmod 700 /run/s6/container_environment
 
 # ---- the secrets (prepare_environment.sh's: 32 letters and digits), never replaced: new ones
 # would sign everybody out and lock the databases' users out
@@ -157,9 +161,9 @@ db_host=$(fxa_env_get "${FXA_ENV}" FXA_DB_PUBLIC_HOST)
   echo "FXA_SMTP_SECURE=$(opt fxa_smtp_secure)"
   echo "FXA_SMTP_SENDER=$(opt fxa_smtp_sender)"
 } > "${link}"
-chown -R nobody:nogroup "${link_dir}"
+chown -R fxa-link:fxa-link "${link_dir}"
 chmod 700 "${link_dir}"
-chmod 400 "${link}"
+chmod 600 "${link}"
 mv -f "${link}" "${link_dir}/link.env"
 bashio::log.info "Link code for the Firefox Sync add-on (its option fxa_link_code): ${host}:$(secret FXA_LINK_TOKEN)"
 pairing_server=${pairing}

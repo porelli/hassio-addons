@@ -1,8 +1,9 @@
 #!/bin/bash
 # shellcheck shell=bash
 # The long-running services of compose/fxa.yml, each with its environment there and nothing
-# else, as the image's user app: services.sh <service> (the s6 run scripts call it).
-#   auth content profile profile-worker profile-static img-proxy pairing
+# else, as its own user (the Dockerfile): services.sh <service> (the s6 run scripts call it).
+#   auth (app, the image's: the keys, /fxa) content (fxa-content) profile profile-worker
+#   profile-static (fxa-profile: the avatars) img-proxy (fxa-imgproxy) pairing (fxa-pairing)
 set -o pipefail
 # shellcheck source=common.sh
 . /usr/lib/firefox-accounts/common.sh
@@ -21,7 +22,11 @@ redis_env() {
 mysql_env() { # mysql_env <prefix>: compose's x-fxa-mysql
   vars+=("$1MYSQL_HOST=${FXA_MYSQL_HOST}" "$1MYSQL_PORT=${FXA_MYSQL_PORT}" "$1MYSQL_USERNAME=${FXA_MYSQL_USER}" "$1MYSQL_PASSWORD=${FXA_MYSQL_PASSWORD}")
 }
-run() { exec env -i "${vars[@]}" /command/s6-setuidgid app "$@"; }
+run() { # run <user> <command>...
+  local user=$1
+  shift
+  exec env -i "${vars[@]}" /command/s6-setuidgid "${user}" "$@"
+}
 
 case "${SERVICE}" in
   auth)
@@ -66,7 +71,7 @@ case "${SERVICE}" in
     redis_env REDIS_HOST ACCESS_TOKEN_REDIS_HOST REFRESH_TOKEN_REDIS_HOST CUSTOMS_REDIS_HOST RATELIMIT_REDIS_HOST \
       METRICS_REDIS_HOST AUTH_CACHE_REDIS_HOST RECOVERY_PHONE_REDIS_HOST PASSKEY_REDIS_HOST
     # keys are only generated when missing: /data keeps them (never generated again)
-    run sh -c 'node scripts/gen_keys.js && node scripts/oauth_gen_keys.js && node scripts/gen_vapid_keys.js &&
+    run app sh -c 'node scripts/gen_keys.js && node scripts/oauth_gen_keys.js && node scripts/gen_vapid_keys.js &&
       node "$0/oauth-clients.js" "$1/oauth-clients.json" && exec node bin/key_server.js' "${FXA_CONFIG}" "${FXA_KEYS}"
     ;;
   content)
@@ -74,7 +79,7 @@ case "${SERVICE}" in
     # shellcheck disable=SC2054 # (SERVICES_WITH_EMAIL_VERIFICATION: a comma-separated value)
     vars+=(
       NODE_ENV=production
-      CONFIG_FILES=/tmp/content-server.json
+      CONFIG_FILES=/run/fxa-content/content-server.json
       "CONTENT_SESSION_SECRET=${FXA_CONTENT_SESSION_SECRET}"
       "PUBLIC_URL=${FXA_CONTENT_URL}"
       "FXA_URL=${FXA_AUTH_URL}" "FXA_OAUTH_URL=${FXA_AUTH_URL}"
@@ -86,7 +91,9 @@ case "${SERVICE}" in
       GEODB_ENABLED=false
     )
     redis_env FEATURE_FLAGS_REDIS_HOST REDIS_HOST
-    run sh -c 'node "$0/content-server.js" /tmp/content-server.json && exec node server/bin/fxa-content-server.js' "${FXA_CONFIG}"
+    # its session secret goes to a file (content-server.js): in its own directory, not in /tmp
+    install -d -m 0700 -o fxa-content -g fxa-content /run/fxa-content
+    run fxa-content sh -c 'node "$0/content-server.js" /run/fxa-content/content-server.json && exec node server/bin/fxa-content-server.js' "${FXA_CONFIG}"
     ;;
   profile)
     cd "${PROFILE_DIR}" || exit 1
@@ -103,28 +110,28 @@ case "${SERVICE}" in
     )
     mysql_env ""
     redis_env REDIS_HOST
-    run node bin/server.js
+    run fxa-profile node bin/server.js
     ;;
   profile-worker)
     cd "${PROFILE_DIR}" || exit 1
     vars+=(NODE_ENV=production WORKER_HOST=127.0.0.1 IMG=local)
-    run node bin/worker.js
+    run fxa-profile node bin/worker.js
     ;;
   profile-static)
     cd "${PROFILE_DIR}" || exit 1
     vars+=(NODE_ENV=production HOST=127.0.0.1 IMG=local)
-    run node bin/_static.js
+    run fxa-profile node bin/_static.js
     ;;
   img-proxy)
     # the chart's img-proxy: /img/<path> on 1114 is the static server's /<path>
     vars+=(NODE_ENV=production)
-    run node "${FXA_CONFIG}/img-proxy.js"
+    run fxa-imgproxy node "${FXA_CONFIG}/img-proxy.js"
     ;;
   pairing)
     cd /opt/channelserver || exit 1
     exec env -i PATH=/usr/bin:/bin PAIR_HOSTNAME=0.0.0.0 PAIR_PORT=8000 PAIR_HUMAN_LOGS=true \
       PAIR_TRUSTED_PROXY_LIST=127.0.0.1,172.16.0.0/12,10.0.0.0/8,192.168.0.0/16 \
-      /command/s6-setuidgid nobody /opt/channelserver/bin/channelserver
+      /command/s6-setuidgid fxa-pairing /opt/channelserver/bin/channelserver
     ;;
   *) echo "services.sh: unknown service ${SERVICE}" >&2; exit 2 ;;
 esac
