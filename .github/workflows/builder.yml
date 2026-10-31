@@ -1,5 +1,11 @@
 name: Builder
 
+# The add-ons with a Dockerfile of their own, built with Home Assistant's builder actions
+# (BuildKit, one runner per architecture, a multi-arch manifest), as home-assistant/apps-example
+# does since the legacy builder was retired (developers.home-assistant.io/blog/2026/04/02/builder-migration).
+# Pushed to ghcr.io on main only. airconnect uses its upstream image (config.json "image"):
+# nothing to build.
+
 on:
   push:
     branches:
@@ -8,30 +14,24 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    name: Build add-on ${{ matrix.addon }}
+  build-app:
+    name: Build ${{ matrix.app }}
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
     strategy:
       fail-fast: false
       matrix:
-        addon:
-          - airconnect
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build ${{ matrix.addon }} add-on
-        uses: home-assistant/builder@master
-        with:
-          args: |
-            --target ${{ matrix.addon }} \
-            --docker-hub ghcr.io/${{ github.repository_owner }} \
-            --all
+        app:
+          - firefox_sync
+          - firefox_accounts
+    uses: ./.github/workflows/build-app.yml
+    with:
+      app: ${{ matrix.app }}
+      publish: ${{ github.event_name == 'push' }}
+    secrets: inherit
