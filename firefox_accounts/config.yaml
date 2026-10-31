@@ -1,0 +1,61 @@
+# https://developers.home-assistant.io/docs/apps/configuration
+name: Mozilla accounts (self-hosted)
+version: "0.1.0"
+slug: firefox_accounts
+description: >-
+  Self-hosted Mozilla accounts (FxA) for the Firefox Sync add-on: sign-up, sign-in and
+  pairing on your own server. Large: a 5 GB image and 3 to 4 GB of RAM
+url: https://github.com/porelli/hassio-addons/tree/main/firefox_accounts
+arch:
+  - aarch64
+  - amd64
+image: ghcr.io/porelli/hassio-addon-firefox-accounts
+init: false
+# before the application add-ons: the Firefox Sync add-on reads its link at its start
+startup: services
+# the first start runs the database migrations (minutes on a slow disk)
+timeout: 180
+# the four public host names go through your reverse proxy (DOCS.md): the NGINX Proxy Manager
+# add-on reaches these ports on the add-on network; map them only for a proxy elsewhere
+ports:
+  3030/tcp: null
+  9000/tcp: null
+  1111/tcp: null
+  1114/tcp: null
+  8000/tcp: null
+services:
+  - mysql:want
+backup_pre: /usr/bin/fxa-backup-pre
+backup_exclude:
+  - "*/mariadb/*"
+options:
+  fxa_content_url: null
+  fxa_auth_url: null
+  fxa_profile_url: null
+  fxa_pairing_url: ""
+  sync_public_url: null
+  fxa_db_containers: true
+  fxa_smtp_host: null
+  fxa_smtp_port: 587
+  fxa_smtp_user: ""
+  fxa_smtp_pass: ""
+  fxa_smtp_secure: false
+  fxa_smtp_sender: null
+  fxa_signups: open
+schema:
+  fxa_content_url: url
+  fxa_auth_url: url
+  fxa_profile_url: url
+  fxa_pairing_url: "match(^(wss?://.+)?$)"
+  sync_public_url: url
+  fxa_db_containers: bool
+  fxa_smtp_host: str
+  fxa_smtp_port: port
+  fxa_smtp_user: str?
+  fxa_smtp_pass: password?
+  fxa_smtp_secure: bool
+  fxa_smtp_sender: str
+  fxa_signups: list(open|allowlist|closed)
+  fxa_signup_allowlist: str?
+  # off by default: MariaDB data of another major than the image's is refused
+  fxa_mariadb_upgrade: bool?

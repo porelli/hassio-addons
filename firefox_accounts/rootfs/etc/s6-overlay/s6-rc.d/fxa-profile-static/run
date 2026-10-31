@@ -1,0 +1,5 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+# fxa-profile-static: the avatars (127.0.0.1:1112), behind img-proxy
+exec s6-notifyoncheck -d -n 0 -s 2000 -w 1000 -c "curl -sf -o /dev/null http://127.0.0.1:1112/a/00000000000000000000000000000000" \
+  /usr/lib/firefox-accounts/services.sh profile-static

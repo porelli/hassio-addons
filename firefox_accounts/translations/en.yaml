@@ -1,0 +1,52 @@
+configuration:
+  fxa_content_url:
+    name: Accounts pages URL
+    description: The public HTTPS URL of the accounts' web pages, e.g. https://accounts.example.com (FXA_CONTENT_URL).
+  fxa_auth_url:
+    name: Accounts API URL
+    description: The public HTTPS URL of the accounts' API, e.g. https://api.example.com (FXA_AUTH_URL). Its host name is the accounts' email domain.
+  fxa_profile_url:
+    name: Profile server URL
+    description: The public HTTPS URL of the profile server, e.g. https://profile.example.com (FXA_PROFILE_URL).
+  fxa_pairing_url:
+    name: Pairing server URL
+    description: Your own pairing server, wss://pairing.example.com (FXA_PAIRING_URL). Empty - Mozilla's pairing server.
+  sync_public_url:
+    name: Public Sync URL
+    description: The public URL of the Firefox Sync add-on (SYNC_PUBLIC_URL).
+  fxa_db_containers:
+    name: Bundled MariaDB
+    description: On - the accounts' databases in a MariaDB inside this add-on. Off - in the MariaDB add-on, which must be running (FXA_DB_CONTAINERS).
+  fxa_smtp_host:
+    name: SMTP server
+    description: The server that sends the sign-up and sign-in codes (FXA_SMTP_HOST).
+  fxa_smtp_port:
+    name: SMTP port
+    description: 587 for STARTTLS, 465 for TLS (FXA_SMTP_PORT).
+  fxa_smtp_user:
+    name: SMTP user
+    description: Empty - no sign-in to the SMTP server (FXA_SMTP_USER).
+  fxa_smtp_pass:
+    name: SMTP password
+    description: FXA_SMTP_PASS.
+  fxa_smtp_secure:
+    name: SMTP over TLS
+    description: On for TLS from the start (port 465), off for STARTTLS (FXA_SMTP_SECURE).
+  fxa_smtp_sender:
+    name: Sender
+    description: The From of the emails, e.g. Mozilla accounts <no-reply@example.com> (FXA_SMTP_SENDER).
+  fxa_signups:
+    name: Sign-ups
+    description: open, allowlist (the emails and domains below) or closed (FXA_SIGNUPS). The admin UI changes it too.
+  fxa_signup_allowlist:
+    name: Sign-up allowlist
+    description: With allowlist - emails and @domains, comma-separated (FXA_SIGNUP_ALLOWLIST).
+  fxa_mariadb_upgrade:
+    name: Allow a new MariaDB major
+    description: Off - data of another MariaDB major than this version's is refused at the start. On - the data is upgraded, with no way back but a backup.
+network:
+  3030/tcp: The accounts' web pages
+  9000/tcp: The accounts' API
+  1111/tcp: The profile server
+  1114/tcp: The avatars (/img/ of the profile host)
+  8000/tcp: The pairing server (a websocket)

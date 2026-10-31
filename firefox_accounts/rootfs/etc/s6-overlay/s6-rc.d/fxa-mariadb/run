@@ -1,0 +1,15 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+# The bundled MariaDB (fxa_db_containers on), compose's fxa-db (--event-scheduler=ON): on the
+# add-on network too, for the Firefox Sync add-on's admin UI (its own user, ffs_admin). With
+# the MariaDB add-on: nothing runs, ready at once.
+. /usr/lib/firefox-accounts/common.sh
+fxa_load
+if [ "${FXA_DB_CONTAINERS}" != 1 ]; then
+  echo >&3
+  exec sleep infinity
+fi
+exec s6-notifyoncheck -d -n 0 -s 1000 -w 1000 -c "mariadb-admin --protocol=socket -S ${FXA_SOCKET} ping" \
+  mariadbd --user=mysql --datadir="${FXA_DATADIR}" --socket="${FXA_SOCKET}" --bind-address=0.0.0.0 --port=3306 \
+  --skip-name-resolve --skip-log-bin --event-scheduler=ON --log-error= \
+  --innodb-buffer-pool-size=256M --max-connections=200

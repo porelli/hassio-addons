@@ -1,0 +1,5 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+# img-proxy (the chart's): /img/ of the profile host on 1114, the prefix stripped
+exec s6-notifyoncheck -d -n 0 -s 1000 -w 1000 -c "curl -sf -o /dev/null http://127.0.0.1:1114/img/a/00000000000000000000000000000000" \
+  /usr/lib/firefox-accounts/services.sh img-proxy

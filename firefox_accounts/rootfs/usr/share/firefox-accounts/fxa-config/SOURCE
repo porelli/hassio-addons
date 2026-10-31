@@ -1,0 +1,5 @@
+Copies of firefox-sync's files (main at e792dd3, 2026-10-31), which the images do not carry:
+  content-server.js  config/fxa/content-server.js
+  oauth-clients.js   config/fxa/oauth-clients.js
+  img-proxy.js       charts/firefox-sync/files/fxa/img-proxy.js
+Refresh them with each firefox-sync release.

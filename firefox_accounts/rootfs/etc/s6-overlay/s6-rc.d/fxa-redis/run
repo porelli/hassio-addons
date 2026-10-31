@@ -1,0 +1,11 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+# The accounts' Redis (compose's fxa-redis): in memory, no volume; its password in the
+# configuration read from stdin (the chart's), not in its arguments. On the add-on network too,
+# for the Firefox Sync add-on's admin UI (it revokes the access tokens of an account there).
+. /usr/lib/firefox-accounts/common.sh
+fxa_load
+export REDISCLI_AUTH="${FXA_REDIS_PASSWORD}"
+config=$(printf 'bind 0.0.0.0\nport 6379\nprotected-mode yes\nrequirepass "%s"\nsave ""\nappendonly no\ndir /tmp\n' "${FXA_REDIS_PASSWORD}")
+exec s6-notifyoncheck -d -n 0 -s 500 -w 1000 -c "redis-cli -h 127.0.0.1 ping" \
+  /command/s6-setuidgid redis redis-server - <<< "${config}"

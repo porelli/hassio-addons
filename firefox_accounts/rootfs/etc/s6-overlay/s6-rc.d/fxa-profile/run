@@ -1,0 +1,5 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+# fxa-profile (compose's fxa-profile): ready (fd 3) when its /__heartbeat__ answers, as compose's healthcheck
+exec s6-notifyoncheck -d -n 0 -s 5000 -w 2000 -c "curl -sf -o /dev/null http://127.0.0.1:1111/__heartbeat__" \
+  /usr/lib/firefox-accounts/services.sh profile

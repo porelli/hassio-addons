@@ -1,0 +1,27 @@
+#!/bin/bash
+# shellcheck shell=bash
+# backup_pre of the add-on: before a Home Assistant backup, a consistent dump of the accounts'
+# five databases (fxa fxa_oauth fxa_profile pushbox ffs, as compose's backup-fxa dumps them),
+# as the bootstrap account, into /data/backup (only the newest). The raw files of the bundled
+# MariaDB are left out of the backup: a restore loads this dump (fxa-db-prepare,
+# fxa-db-bootstrap). The signing keys are in /data/fxa-keys, in the backup. A failure fails
+# the backup of the add-on.
+set -o pipefail
+# shellcheck source=../lib/firefox-accounts/common.sh
+. /usr/lib/firefox-accounts/common.sh
+fxa_load
+umask 077
+mkdir -p "${FXA_DUMP_DIR}"
+out=${FXA_DUMP_DIR}/firefox-accounts-$(date -u +%Y%m%dT%H%M%SZ).sql.gz
+# shellcheck disable=SC2086 # (the database names)
+if MYSQL_PWD="${FXA_DB_BOOTSTRAP_PASSWORD}" mariadb-dump --protocol=tcp -h "${FXA_MYSQL_HOST}" -P "${FXA_MYSQL_PORT}" \
+  -u "${FXA_DB_BOOTSTRAP_USER}" --single-transaction --routines --triggers --events --databases ${FXA_DATABASES} \
+  2> /tmp/fxa-backup.err | gzip -6 > "${out}.partial"; then
+  mv -f "${out}.partial" "${out}"
+  find "${FXA_DUMP_DIR}" -name 'firefox-accounts-*.sql.gz' ! -name "$(basename "${out}")" -delete
+  echo "fxa-backup-pre: ${out} ($(stat -c %s "${out}") bytes)"
+else
+  rm -f "${out}.partial"
+  echo "fxa-backup-pre: the dump failed: $(grep -v '^Warning' /tmp/fxa-backup.err | head -n 3)" >&2
+  exit 1
+fi
