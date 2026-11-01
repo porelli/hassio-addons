@@ -1,6 +1,9 @@
-"""Home Assistant's side of the HAOS test (tests/haos/haos-check.sh), as a real HA user.
+"""Home Assistant's side of the HAOS test (with haos-vm.sh), as a real HA user.
 
     python3 ha.py <command> [args]
+      onboard [user] [password]   onboard a fresh Home Assistant (the onboarding API: the owner,
+                                  default test / test-password-123, the location, analytics, the
+                                  frontend's integration step) and save its tokens in HA_TOKENS
       token                       a fresh access token from the refresh token of onboarding
       ingress <ingress entry>     the add-on's admin UI through Home Assistant's ingress, as that
                                   user: an ingress session (supervisor/api /ingress/session over the websocket), then
@@ -25,6 +28,7 @@ import urllib.request
 
 BASE = f"http://127.0.0.1:{os.environ.get('HA_PORT', '18123')}"
 TOKENS = os.environ.get("HA_TOKENS", "/tmp/haos_tokens.json")
+USER = os.environ.get("HA_USER", "test")
 
 
 def call(method, path, body=None, token=None, form=False, headers=None):
@@ -42,6 +46,34 @@ def call(method, path, body=None, token=None, form=False, headers=None):
     req = urllib.request.Request(BASE + path, data=data, headers=h, method=method)
     with urllib.request.urlopen(req, timeout=120) as res:
         return res.status, res.read().decode()
+
+
+def onboard(user: str, password: str) -> None:
+    """The onboarding steps the frontend takes, then the owner's tokens saved."""
+    client_id = f"{BASE}/"
+    _, text = call(
+        "POST",
+        "/api/onboarding/users",
+        {"client_id": client_id, "name": user.title(), "username": user, "password": password, "language": "en"},
+    )
+    _, text = call(
+        "POST",
+        "/auth/token",
+        {"grant_type": "authorization_code", "code": json.loads(text)["auth_code"], "client_id": client_id},
+        form=True,
+    )
+    tokens = json.loads(text)
+    for step, body in (
+        ("core_config", {}),
+        ("analytics", {}),
+        ("integration", {"client_id": client_id, "redirect_uri": f"{BASE}/?auth_callback=1"}),
+    ):
+        call("POST", f"/api/onboarding/{step}", body, token=tokens["access_token"])
+    fd = os.open(TOKENS, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(tokens, f)
+    _, text = call("GET", "/api/onboarding")
+    print(json.dumps({"onboarded": user, "steps": json.loads(text)}))
 
 
 def token() -> str:
@@ -129,6 +161,10 @@ def ws(tok: str, message: dict):
 
 def main() -> int:
     cmd = sys.argv[1]
+    if cmd == "onboard":
+        user = sys.argv[2] if len(sys.argv) > 2 else "test"
+        onboard(user, sys.argv[3] if len(sys.argv) > 3 else "test-password-123")
+        return 0
     tok = token()
     if cmd == "token":
         print(tok)
@@ -152,7 +188,7 @@ def main() -> int:
                 {
                     "status": status,
                     "ingress_entry": entry,
-                    "signed_in_as": re.findall(r"ingress-tester", page)[:1],
+                    "signed_in_as": re.findall(USER, page)[:1],
                     "absolute_links_left": [
                         link
                         for link in links

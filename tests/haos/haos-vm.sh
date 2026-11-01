@@ -34,15 +34,20 @@ vssh() { ssh -i "${KEY}" -p "${SSH_PORT}" -o IdentitiesOnly=yes -o StrictHostKey
 
 create() {
   mkdir -p "${DIR}" && chmod 700 "${DIR}"
-  [ -f "${DIR}/haos.qcow2" ] && { echo "exists: ${DIR}/haos.qcow2"; return; }
-  local version=${HAOS_VERSION:-$(curl -fsSL https://api.github.com/repos/home-assistant/operating-system/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')}
-  [ -n "${version}" ] || die "no HAOS version"
-  echo "HAOS ${version} (${BOARD})"
-  curl -fL -o "${DIR}/haos.qcow2.xz" "https://github.com/home-assistant/operating-system/releases/download/${version}/haos_${BOARD}-${version}.qcow2.xz" || die "download failed"
-  xz -d "${DIR}/haos.qcow2.xz" || die "xz failed"
-  echo "${version}" > "${DIR}/version"
+  # each part only when missing, so a create that stopped halfway resumes
+  if [ -f "${DIR}/haos.qcow2" ]; then
+    echo "exists: ${DIR}/haos.qcow2"
+  else
+    local version=${HAOS_VERSION:-$(curl -fsSL https://api.github.com/repos/home-assistant/operating-system/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')}
+    [ -n "${version}" ] || die "no HAOS version"
+    echo "HAOS ${version} (${BOARD})"
+    curl -fL -o "${DIR}/haos.qcow2.xz" "https://github.com/home-assistant/operating-system/releases/download/${version}/haos_${BOARD}-${version}.qcow2.xz" || die "download failed"
+    xz -d "${DIR}/haos.qcow2.xz" || die "xz failed"
+    echo "${version}" > "${DIR}/version"
+  fi
   firmware
-  cp "${VARS_T}" "${DIR}/efi-vars.fd"
+  [ -f "${DIR}/efi-vars.fd" ] || cp "${VARS_T}" "${DIR}/efi-vars.fd"
+  [ -f "${DIR}/config.img" ] && { echo "created in ${DIR}"; return; }
   # the CONFIG drive: HAOS imports authorized_keys from a FAT partition labelled CONFIG at boot
   [ -f "${KEY}.pub" ] || die "no ${KEY}.pub"
   # (mtools: macOS cannot mount FAT unprivileged; brew install mtools dosfstools, or make it
