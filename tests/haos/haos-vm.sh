@@ -82,9 +82,12 @@ start() {
 
 stop() {
   [ -f "${DIR}/qemu.pid" ] || return 0
+  # (read once: qemu removes its pid file when it exits)
+  local pid
+  pid=$(cat "${DIR}/qemu.pid")
   vssh 'ha host shutdown' > /dev/null 2>&1 || true
-  for _ in $(seq 1 60); do kill -0 "$(cat "${DIR}/qemu.pid")" 2> /dev/null || break; sleep 2; done
-  kill "$(cat "${DIR}/qemu.pid")" 2> /dev/null
+  for _ in $(seq 1 60); do kill -0 "${pid}" 2> /dev/null || break; sleep 2; done
+  kill "${pid}" 2> /dev/null
   rm -f "${DIR}/qemu.pid"
 }
 
