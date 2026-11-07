@@ -100,8 +100,8 @@ jobs:
             ${{ needs.prepare.outputs.url && format('io.hass.url={0}', needs.prepare.outputs.url) || '' }}
           # the firefox-sync images: the Dockerfiles' default (the public repository), or the
           # repository variable FIREFOX_SYNC_IMAGES (ghcr.io/porelli/firefox-sync-dev to test
-          # with the dev images; then nothing is published, see builder.yml)
-          build-args: ${{ vars.FIREFOX_SYNC_IMAGES && format('IMAGE_REPOSITORY={0}', vars.FIREFOX_SYNC_IMAGES) || '' }}
+          # with the dev images; then nothing is published, see builder.yml). Not airconnect's
+          build-args: ${{ startsWith(inputs.app, 'firefox_') && vars.FIREFOX_SYNC_IMAGES && format('IMAGE_REPOSITORY={0}', vars.FIREFOX_SYNC_IMAGES) || '' }}
           push: ${{ inputs.publish }}
           # a published version is never pushed again: bump `version` to release a change
           skip-existing: ${{ needs.prepare.outputs.version }}

@@ -64,7 +64,7 @@ jobs:
       - name: Run ShellCheck on the add-ons' scripts and the tests
         run: |
           # (seam/: firefox-sync's files, linted there)
-          grep -rlE '^#!.*(bash|bashio|/sh)' firefox_*/rootfs tests | grep -v '\.py$' | grep -v '/seam/' |
+          grep -rlE '^#!.*(bash|bashio|/sh)' airconnect/rootfs firefox_*/rootfs tests | grep -v '\.py$' | grep -v '/seam/' |
             xargs shellcheck -x -S warning -s bash
 
   validate:
@@ -77,15 +77,11 @@ jobs:
           persist-credentials: false
 
       # repository.yaml: the Supervisor does not load the repository without a valid one
-      - name: Validate repository.yaml, the YAML and JSON files
+      - name: Validate repository.yaml and the YAML files
         run: |
           set -e
           test "$(yq -r '.name' repository.yaml)" != null
           for f in repository.yaml */config.yaml */translations/*.yaml; do
             echo "Validating $f"
             yq -e 'true' "$f" > /dev/null
-          done
-          for f in */config.json; do
-            echo "Validating $f"
-            jq empty "$f"
           done

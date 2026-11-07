@@ -18,8 +18,8 @@ Or by hand:
 3. Add `https://github.com/porelli/hassio-addons` and select **Add**.
 4. The apps of this repository appear in the store, under "porelli's Home Assistant apps".
 
-The Firefox Sync apps are prebuilt images on ghcr.io (aarch64 and amd64): nothing is built on
-your device. Apps need the Supervisor, that is Home Assistant OS.
+The apps are prebuilt images on ghcr.io (aarch64 and amd64): nothing is built on your
+device. Apps need the Supervisor, that is Home Assistant OS.
 
 [my-badge]: https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg
 [my-link]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fporelli%2Fhassio-addons
@@ -32,13 +32,13 @@ This repository contains the following add-ons:
 
 ![Supports aarch64 Architecture][aarch64-shield]
 ![Supports amd64 Architecture][amd64-shield]
-![Supports armv7 Architecture][armv7-shield]
 
-AirConnect enables AirPlay streaming to Chromecast and UPnP/Sonos devices.
+AirPlay for your UPnP/Sonos players and Chromecasts: philippe44's
+[AirConnect](https://github.com/philippe44/AirConnect) bridges. See
+[airconnect](airconnect/README.md).
 
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
-[armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
 
 ### Firefox Sync
 
@@ -59,6 +59,9 @@ RAM. See [firefox_accounts](firefox_accounts/README.md).
 
 ## Testing the add-ons without Home Assistant
 
+`tests/run-airconnect.sh <image>` runs the AirConnect add-on's image with a mock Supervisor and
+checks the bridges' command lines for several sets of options (no players needed; `APPARMOR=1`
+under its profile, see its header).
 `tests/` runs the Firefox Sync add-ons' images standalone, with a mock Supervisor
 (`tests/mock_supervisor.py`): `tests/run-firefox-sync.sh` and `tests/run-accounts.sh`, see
 their headers. They need firefox-sync's checkout for its tests, and Docker.
