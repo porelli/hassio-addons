@@ -2,14 +2,15 @@
 # Firefox Sync for Home Assistant: one container with the firefox-sync images' programs,
 # supervised by s6-overlay v3 (rootfs/etc/s6-overlay/s6-rc.d).
 #
-#   IMAGE_REPOSITORY  where the firefox-sync images come from. FOR NOW the dev repository,
-#                     until the testing is done and the images are promoted; then this one
-#                     line becomes ghcr.io/porelli/firefox-sync (the public repository)
+#   IMAGE_REPOSITORY  where the firefox-sync images come from: the public repository. For a
+#                     test build from the dev images, --build-arg
+#                     IMAGE_REPOSITORY=ghcr.io/porelli/firefox-sync-dev (same tag names; the
+#                     builder workflow does it when the FIREFOX_SYNC_IMAGES variable is set)
 #   IMAGE_TAG         their tag suffix: latest (syncstorage-rs-mysql-latest, admin-latest...)
 #   MARIADB_SERIES    the bundled MariaDB, from MariaDB's own repository: latest-LTS, the newest
 #                     long-term series when the image is built. The data's major is kept in
 #                     /data/firefox-sync.env: another major is refused unless allowed (DOCS.md)
-ARG IMAGE_REPOSITORY=ghcr.io/porelli/firefox-sync-dev
+ARG IMAGE_REPOSITORY=ghcr.io/porelli/firefox-sync
 ARG IMAGE_TAG=latest
 
 # the admin UI (a static Go binary), the init container's script and SQL (max users), and

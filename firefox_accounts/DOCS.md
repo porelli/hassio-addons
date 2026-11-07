@@ -78,11 +78,12 @@ The options are the stack's settings (`.env` of firefox-sync), in lower case:
 | `fxa_signup_allowlist` | with `allowlist`: emails and `@domains`, comma-separated |
 | `fxa_mariadb_upgrade` | optional, off: see [MariaDB updates](#mariadb-updates) |
 
-**The images.** Until firefox-sync's testing is done, this add-on is built from the dev
-images, `ghcr.io/porelli/firefox-sync-dev`, which are private: a local build needs the
-Supervisor to log in to ghcr.io (`ha docker registries add`, as in the Firefox Sync add-on).
-When the images are promoted, the default of `IMAGE_REPOSITORY` in the Dockerfile becomes
-`ghcr.io/porelli/firefox-sync`: one line.
+**The images.** The add-on is a prebuilt image, `ghcr.io/porelli/hassio-addon-firefox-accounts`
+(aarch64 and amd64, tagged with the add-on's version), built from firefox-sync's public images
+`ghcr.io/porelli/firefox-sync` (`fxa-mono-latest`, `fxa-channelserver-latest`,
+`admin-latest`). To test with the dev images instead, as in the Firefox Sync add-on
+(its documentation, "The images"): `--build-arg IMAGE_REPOSITORY=ghcr.io/porelli/firefox-sync-dev`,
+or the repository variable `FIREFOX_SYNC_IMAGES` in this repository's CI.
 
 The maximum number of accounts is managed in the admin UI (`FXA_MAX_ACCOUNTS=initial:unlimited`).
 
@@ -140,4 +141,12 @@ another major is refused at the start. To move to a new major, back up the add-o
 
 ## Support
 
-[Self-hosted accounts in firefox-sync's docs](https://github.com/porelli/firefox-sync/blob/main/docs/accounts.md).
+- This add-on: [issues of porelli/hassio-addons](https://github.com/porelli/hassio-addons/issues).
+- [Self-hosted accounts in firefox-sync's docs](https://github.com/porelli/firefox-sync/blob/main/docs/accounts.md),
+  and firefox-sync's [issues](https://github.com/porelli/firefox-sync/issues).
+
+## License
+
+The add-on's files are MIT ([LICENSE](https://github.com/porelli/hassio-addons/blob/main/LICENSE)).
+The image holds Mozilla's accounts and pairing server (MPL-2.0), firefox-sync's admin tool
+(GPL-3.0), Redis and MariaDB, under their own licenses.

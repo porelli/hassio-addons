@@ -3,8 +3,9 @@ name: Builder
 # The add-ons with a Dockerfile of their own, built with Home Assistant's builder actions
 # (BuildKit, one runner per architecture, a multi-arch manifest), as home-assistant/apps-example
 # does since the legacy builder was retired (developers.home-assistant.io/blog/2026/04/02/builder-migration).
-# Pushed to ghcr.io on main only. airconnect uses its upstream image (config.json "image"):
-# nothing to build.
+# Pushed to ghcr.io on main only, and only when built from the public firefox-sync images: with
+# the repository variable FIREFOX_SYNC_IMAGES set (the dev images) it builds without pushing.
+# airconnect uses its upstream image (config.json "image"): nothing to build.
 
 on:
   push:
@@ -33,5 +34,5 @@ jobs:
     uses: ./.github/workflows/build-app.yml
     with:
       app: ${{ matrix.app }}
-      publish: ${{ github.event_name == 'push' }}
+      publish: ${{ github.event_name == 'push' && vars.FIREFOX_SYNC_IMAGES == '' }}
     secrets: inherit

@@ -88,11 +88,26 @@ database sizes, backups, errors, certificates, and the health of each part.
 
 ## The images
 
-Until firefox-sync's testing is done, the add-on is built from the dev images,
-`ghcr.io/porelli/firefox-sync-dev`, which are private: a local build needs the Supervisor to
-log in to ghcr.io (`ha docker registries add --server ghcr.io --username <user> --password <token
-with read:packages>`). When the images are promoted, the default of `IMAGE_REPOSITORY` in the
-Dockerfile becomes `ghcr.io/porelli/firefox-sync`: one line.
+The add-on is a prebuilt image, `ghcr.io/porelli/hassio-addon-firefox-sync` (aarch64 and
+amd64), tagged with the add-on's version: installing and updating download it, nothing is
+built on your device. The image is built from firefox-sync's public images,
+`ghcr.io/porelli/firefox-sync` (`syncstorage-rs-mysql-latest`, `admin-latest`...), when the
+version is released.
+
+**Testing with firefox-sync's dev images** (for development, not for your Home Assistant): the
+Dockerfile's `IMAGE_REPOSITORY` build argument picks where they come from, and the dev ones have
+the same tag names:
+
+- `docker build --build-arg IMAGE_REPOSITORY=ghcr.io/porelli/firefox-sync-dev firefox_sync`
+  (after `docker login ghcr.io`: the dev images are private).
+- In this repository's CI: set the repository variable `FIREFOX_SYNC_IMAGES` to
+  `ghcr.io/porelli/firefox-sync-dev`. The builder then builds both add-ons from the dev images
+  and publishes nothing; delete the variable to go back.
+- As a local add-on built by the Supervisor (`tests/haos/`): copy the add-on folder to
+  `/addons`, delete its `image:` line (so the Supervisor builds it) and change the default of
+  `ARG IMAGE_REPOSITORY` in the copied Dockerfile to the dev repository; the Supervisor needs
+  `ha docker registries add --server ghcr.io --username <user> --password <token with
+  read:packages>`.
 
 ## Backups
 
@@ -136,5 +151,13 @@ newer major than the add-on's is always refused.
 
 ## Support
 
-[firefox-sync's documentation](https://github.com/porelli/firefox-sync/tree/main/docs), and its
-[issues](https://github.com/porelli/firefox-sync/issues) for the stack itself.
+- This add-on: [issues of porelli/hassio-addons](https://github.com/porelli/hassio-addons/issues).
+- The stack itself: [firefox-sync's documentation](https://github.com/porelli/firefox-sync/tree/main/docs)
+  and its [issues](https://github.com/porelli/firefox-sync/issues).
+- The integration: [porelli/ha-firefox-sync](https://github.com/porelli/ha-firefox-sync).
+
+## License
+
+The add-on's files are MIT ([LICENSE](https://github.com/porelli/hassio-addons/blob/main/LICENSE)).
+The image holds firefox-sync (GPL-3.0), Mozilla's syncstorage-rs (MPL-2.0) and MariaDB
+(GPL-2.0), under their own licenses.

@@ -4,12 +4,13 @@
 # supervised by s6-overlay v3 (rootfs/etc/s6-overlay). compose/fxa.yml of firefox-sync, one
 # service per s6 service.
 #
-#   IMAGE_REPOSITORY  where the firefox-sync images come from. FOR NOW the dev repository,
-#                     until the testing is done and the images are promoted; then this one
-#                     line becomes ghcr.io/porelli/firefox-sync (the public repository)
+#   IMAGE_REPOSITORY  where the firefox-sync images come from: the public repository. For a
+#                     test build from the dev images, --build-arg
+#                     IMAGE_REPOSITORY=ghcr.io/porelli/firefox-sync-dev (same tag names; the
+#                     builder workflow does it when the FIREFOX_SYNC_IMAGES variable is set)
 #   IMAGE_TAG         their tag suffix: latest (fxa-mono-latest, fxa-channelserver-latest...)
 #   MARIADB_SERIES    the bundled MariaDB, from MariaDB's repository: latest-LTS when built
-ARG IMAGE_REPOSITORY=ghcr.io/porelli/firefox-sync-dev
+ARG IMAGE_REPOSITORY=ghcr.io/porelli/firefox-sync
 ARG IMAGE_TAG=latest
 
 # the sign-up policy (ffs-admin fxa-init), the pairing server, s6-overlay with bashio
