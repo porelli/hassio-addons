@@ -1,0 +1,51 @@
+# https://developers.home-assistant.io/docs/apps/configuration
+name: AirConnect
+version: "2.0.0"
+slug: airconnect
+description: >-
+  AirPlay for your UPnP/Sonos and Chromecast players: philippe44's AirConnect bridges
+  (airupnp and aircast) make each of them an AirPlay speaker
+url: https://github.com/porelli/hassio-addons/tree/main/airconnect
+arch:
+  - aarch64
+  - amd64
+# the multi-arch image the builder workflow publishes (comment it out to have the
+# Supervisor build the add-on locally from the Dockerfile)
+image: ghcr.io/porelli/hassio-addon-airconnect
+init: false
+# the players are found by multicast (SSDP, mDNS) and the virtual AirPlay speakers announced
+# by mDNS, on the network of the host: no NAT between them and the add-on
+host_network: true
+# the optional config files of advanced users (DOCS.md, "Config files"), read only
+map:
+  - addon_config
+options:
+  airupnp: true
+  aircast: true
+  upnp_latency: "1000:2000"
+  log_level: info
+schema:
+  # the bridges: UPnP/Sonos (airupnp) and Chromecast (aircast)
+  airupnp: bool
+  aircast: bool
+  # the network interface or IPv4 address to use (-b); empty: the one of the default route
+  interface: "match(^[A-Za-z0-9_.-]{1,40}$)?"
+  # airupnp's UPnP port (-b <interface>:<port>), above 49152
+  upnp_port: int(49153,65535)?
+  # -l <rtp>[:<http>][:f] in ms; Sonos and Heos want 1000:2000
+  upnp_latency: "match(^-?[0-9]{1,5}(:[0-9]{1,5})?(:f)?$)?"
+  cast_latency: "match(^-?[0-9]{1,5}(:[0-9]{1,5})?(:f)?$)?"
+  # -c: mp3[:rate], aac[:rate], flac[:0..9][/blocksize], wav, pcm (airupnp only)
+  codec: "match(^(mp3(:[0-9]{2,3})?|aac(:[0-9]{2,3})?|flac(:[0-9])?(/[0-9]{4,5})?|wav|pcm)$)?"
+  # -N: the AirPlay names, %s the player's name (upstream's default "%s+")
+  name_format: "match(^[^%]{0,40}(%s[^%]{0,40})?$)?"
+  # airupnp's -m and -n: players to leave out by parts of their UPnP model name or model
+  # number, comma-separated (no empty parts: airupnp does not expect them)
+  upnp_exclude_models: "match(^[^,]{1,60}(,[^,]{1,60}){0,15}$)?"
+  upnp_exclude_model_numbers: "match(^[^,]{1,60}(,[^,]{1,60}){0,15}$)?"
+  # aircast's -v: the media volume factor of Chromecast groups (upstream's default 0.5)
+  cast_media_volume: float(0,1)?
+  # --noflush: ignore AirPlay's FLUSH (some Sonos when skipping tracks)
+  noflush: bool?
+  # -d all=<level>
+  log_level: list(error|warn|info|debug|sdebug)

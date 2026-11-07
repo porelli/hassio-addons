@@ -1,0 +1,3 @@
+#!/bin/sh
+# the airupnp bridge (AirConnect), its options in /usr/lib/airconnect/bridge.sh
+exec /usr/lib/airconnect/bridge.sh airupnp

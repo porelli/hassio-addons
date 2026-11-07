@@ -1,0 +1,61 @@
+configuration:
+  airupnp:
+    name: UPnP/Sonos bridge
+    description: >-
+      airupnp: every UPnP/DLNA renderer found on the network (Sonos, Heos, Bose SoundTouch,
+      TVs...) becomes an AirPlay speaker.
+  aircast:
+    name: Chromecast bridge
+    description: >-
+      aircast: every Chromecast (Chromecast Audio, Google/Nest speakers, Cast groups, TVs) becomes
+      an AirPlay speaker.
+  interface:
+    name: Network interface
+    description: >-
+      The interface name (for example end0, eth0, wlan0) or IPv4 address of the network your
+      players are on (-b). Empty: the interface of the default route.
+  upnp_port:
+    name: UPnP port
+    description: >-
+      The port airupnp listens on for UPnP (49153 to 65535), for a firewall. Empty: 49152 or the
+      next free one.
+  upnp_latency:
+    name: UPnP latency
+    description: >-
+      airupnp's buffering in ms, <rtp>[:<http>][:f] (-l). Sonos and Heos want 1000:2000. Empty:
+      AirConnect's default (0:0).
+  cast_latency:
+    name: Chromecast latency
+    description: >-
+      aircast's buffering in ms, <rtp>[:<http>][:f] (-l). Empty: AirConnect's default (0:0).
+  codec:
+    name: Codec
+    description: >-
+      The format sent to the players (-c): flac[:0-9][/blocksize], mp3[:kbps], aac[:kbps], wav,
+      or pcm (UPnP only). Metadata needs mp3 or aac. Empty: AirConnect's default (flac).
+  name_format:
+    name: Name format
+    description: >-
+      The AirPlay names, %s being the player's name (-N), for example "%s (AirPlay)". Empty:
+      the player's name followed by "+".
+  upnp_exclude_models:
+    name: Exclude UPnP models
+    description: >-
+      Comma-separated parts of UPnP model names to leave out (-m, any case), for example the
+      players that do AirPlay themselves.
+  upnp_exclude_model_numbers:
+    name: Exclude UPnP model numbers
+    description: Comma-separated parts of UPnP model numbers to leave out (-n).
+  cast_media_volume:
+    name: Chromecast group volume factor
+    description: >-
+      The media volume factor of Chromecast groups, 0 to 1 (-v). Empty: AirConnect's default
+      (0.5).
+  noflush:
+    name: Ignore flush
+    description: >-
+      Ignore AirPlay's FLUSH command (--noflush): for players that stop when you skip a track.
+      Pausing then sends silence.
+  log_level:
+    name: Log level
+    description: How much the bridges log (-d all=<level>); debug and sdebug are very verbose.

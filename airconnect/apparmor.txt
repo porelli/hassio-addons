@@ -1,0 +1,64 @@
+#include <tunables/global>
+
+# The AppArmor profile of the add-on (developers.home-assistant.io/docs/apps/presentation#apparmor).
+# The container's side: s6-overlay and bashio (as root, which starts the bridges as the
+# airconnect user: setuid, setgid), reading the options from the Supervisor. The bridges
+# (airupnp, aircast) in a profile of their own: the network (UDP and TCP, the interfaces by
+# netlink), reading their libraries, /etc and their config files, nothing else. No raw sockets,
+# no mount, no ptrace, no writes to /proc and /sys.
+profile airconnect flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # s6-overlay, bashio and the scripts
+  file,
+  network inet stream,
+  network inet6 stream,
+  network inet dgram,
+  network inet6 dgram,
+  unix,
+  signal (send, receive),
+
+  capability chown,
+  capability dac_override,
+  capability fowner,
+  capability fsetid,
+  capability kill,
+  capability setgid,
+  capability setuid,
+
+  deny mount,
+  deny umount,
+  deny pivot_root,
+  deny ptrace (trace),
+  deny @{PROC}/sys/** w,
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/kcore rwklx,
+  deny /sys/** wklx,
+
+  /usr/bin/airupnp Cx -> bridge,
+  /usr/bin/aircast Cx -> bridge,
+
+  profile bridge flags=(attach_disconnected,mediate_deleted) {
+    #include <abstractions/base>
+
+    network inet stream,
+    network inet6 stream,
+    network inet dgram,
+    network inet6 dgram,
+    network netlink raw,
+    # (from s6: the Supervisor names the profile after the full slug, <repository>_airconnect)
+    signal (receive) peer=*airconnect,
+
+    /usr/bin/airupnp mr,
+    /usr/bin/aircast mr,
+    /etc/** r,
+    /config/ r,
+    /config/*.xml r,
+    owner @{PROC}/[0-9]*/** r,
+    @{PROC}/net/** r,
+    /sys/class/net/ r,
+    /sys/devices/** r,
+    /dev/urandom r,
+    /dev/null rw,
+  }
+}
