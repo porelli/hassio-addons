@@ -4,14 +4,16 @@ Thank you for your interest in contributing to this Home Assistant add-ons repos
 
 ## Adding a New Add-on
 
-1. Create a new directory in the repository root with your add-on name
-2. Add the following required files:
-   - `config.json` - Add-on configuration
+1. Create a new directory in the repository root with your add-on name (the same as its `slug`)
+2. Add the files of an app (contributors.home-assistant.io/apps/reference/files):
+   - `config.yaml` - Add-on configuration
    - `Dockerfile` - Docker build instructions
-   - `README.md` - Add-on documentation
-   - `run.sh` - Startup script (if needed)
+   - `README.md`, `DOCS.md`, `CHANGELOG.md` - the store's introduction, the Documentation tab,
+     the changes by version
+   - `icon.png` (128x128), `logo.png`, `translations/en.yaml`, `apparmor.txt`
 
-3. Update the main `README.md` to list your add-on
+3. Add it to the matrices of `.github/workflows/builder.yml` and `lint.yml`, and list it in
+   the main `README.md`
 
 ## Testing Your Add-on Locally
 
@@ -22,15 +24,18 @@ Before submitting, test your add-on:
    docker build -t local/addon-name ./addon-name
    ```
 
-2. Test the configuration:
+2. Lint the configuration with the app linter (what CI runs):
    ```bash
-   jq empty addon-name/config.json
+   docker run --rm -e INPUT_PATH=/addon -v "$PWD/addon-name:/addon:ro" \
+     "$(docker build -q https://github.com/frenck/action-app-linter.git#v2.21.2:src)"
    ```
 
 3. Lint the Dockerfile:
    ```bash
    hadolint addon-name/Dockerfile
    ```
+
+The Firefox Sync add-ons have their own tests in `tests/` (see the main README).
 
 ## Submitting Changes
 
@@ -53,7 +58,7 @@ Before submitting, test your add-on:
 ## Code Style
 
 - Use 2 spaces for indentation in YAML/JSON
-- Follow shell script best practices for `run.sh` scripts
+- Follow shell script best practices (ShellCheck runs in CI)
 - Keep Dockerfiles simple and well-commented
 - Document all configuration options
 

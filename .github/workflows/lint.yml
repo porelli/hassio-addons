@@ -7,6 +7,11 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: read
 
 jobs:
   hadolint:
@@ -14,7 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Run Hadolint
         uses: hadolint/hadolint-action@v3.1.0
@@ -22,7 +29,7 @@ jobs:
           dockerfile: "*/Dockerfile"
           recursive: true
 
-  addon-linter:
+  app-linter:
     name: Lint app ${{ matrix.path }}
     runs-on: ubuntu-latest
     strategy:
@@ -34,10 +41,14 @@ jobs:
           - firefox_accounts
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
+      # the app linter (formerly frenck/action-addon-linter): config.yaml against the
+      # Supervisor's schema, and the options left at their default
       - name: Run Home Assistant App Lint
-        uses: frenck/action-addon-linter@v2.21
+        uses: frenck/action-app-linter@v2.21.2
         with:
           path: "./${{ matrix.path }}"
 
@@ -46,7 +57,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Run ShellCheck on the add-ons' scripts and the tests
         run: |
@@ -54,16 +67,25 @@ jobs:
           grep -rlE '^#!.*(bash|bashio|/sh)' firefox_*/rootfs tests | grep -v '\.py$' | grep -v '/seam/' |
             xargs shellcheck -x -S warning -s bash
 
-  validate-json:
-    name: Validate JSON files
+  validate:
+    name: Validate the repository and the apps' files
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: Validate config.json files and repository.json
+      # repository.yaml: the Supervisor does not load the repository without a valid one
+      - name: Validate repository.yaml, the YAML and JSON files
         run: |
-          for config in */config.json repository.json; do
-            echo "Validating $config"
-            jq empty "$config"
+          set -e
+          test "$(yq -r '.name' repository.yaml)" != null
+          for f in repository.yaml */config.yaml */translations/*.yaml; do
+            echo "Validating $f"
+            yq -e 'true' "$f" > /dev/null
+          done
+          for f in */config.json; do
+            echo "Validating $f"
+            jq empty "$f"
           done
