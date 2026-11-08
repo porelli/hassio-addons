@@ -42,6 +42,11 @@ jobs:
           DESCRIPTION: ${{ steps.info.outputs.description }}
           URL: ${{ steps.info.outputs.url }}
         run: |
+          # the info helper gives its values as JSON strings ("ghcr.io/...", "0.1.0"): without the
+          # quotes, or the image's reference is invalid ("..."):"...")
+          unquote() { local v=${1#\"}; printf '%s' "${v%\"}"; }
+          IMAGE=$(unquote "${IMAGE}") VERSION=$(unquote "${VERSION}") NAME=$(unquote "${NAME}")
+          DESCRIPTION=$(unquote "${DESCRIPTION}") URL=$(unquote "${URL}")
           {
             echo "image_name=${IMAGE##*/}"
             echo "registry_prefix=${IMAGE%/*}"
